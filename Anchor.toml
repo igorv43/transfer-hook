@@ -2,15 +2,16 @@
 seeds = false
 skip-lint = false
 
-
+[programs.localnet]
+transfer_hook = "4q6jWAbct5jGPtCzXUERajrtnQYfJu5iiEEvKtJhzaYw"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "http://localhost:8899"
 wallet = "~/.config/solana/id.json"
-
+commitment = "confirmed"
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 client = "yarn run ts-node client/*.ts"

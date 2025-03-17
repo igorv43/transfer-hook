@@ -1,8 +1,6 @@
 import * as web3 from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
-import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { TransferHook } from "../target/types/transfer_hook";
 import {
   PublicKey,
   SystemProgram,
@@ -22,8 +20,10 @@ import {
   createTransferCheckedInstruction,
   getAssociatedTokenAddressSync,
   createTransferCheckedWithTransferHookInstruction,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import type { TransferHook } from "../target/types/transfer_hook";
+import { getExplorerLink } from "@solana-developers/helpers";
 
 describe("transfer-hook", () => {
   // Configure the client to use the local cluster
@@ -35,7 +35,7 @@ describe("transfer-hook", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.TransferHook as Program<TransferHook>;
+
   const wallet = provider.wallet as anchor.Wallet;
   const connection = provider.connection;
 
@@ -156,6 +156,8 @@ describe("transfer-hook", () => {
       .accounts({
         mint: mint.publicKey,
         extraAccountMetaList: extraAccountMetaListPDA,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       })
       .instruction();
 
@@ -178,6 +180,7 @@ describe("transfer-hook", () => {
     const bigIntAmount = BigInt(amount);
 
     // Standard token transfer instruction
+   
     const transferInstruction = await createTransferCheckedWithTransferHookInstruction(
       connection,
       sourceTokenAccount,
