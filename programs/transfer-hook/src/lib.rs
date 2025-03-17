@@ -58,19 +58,19 @@ pub mod transfer_hook {
     }
 
     pub fn transfer_hook(ctx: Context<TransferHook>, amount: u64) -> Result<()> {
-        let burn_amount = amount.checked_mul(1).unwrap().checked_div(10000).unwrap();
+        // let burn_amount = amount.checked_mul(1).unwrap().checked_div(10000).unwrap();
         
-        token::burn(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                token::Burn {
-                    mint: ctx.accounts.mint.to_account_info(),
-                    from: ctx.accounts.destination_token.to_account_info(),
-                    authority: ctx.accounts.owner.to_account_info(),
-                },
-            ),
-            burn_amount,
-        )?;
+        // token::burn(
+        //     CpiContext::new(
+        //         ctx.accounts.token_program.to_account_info(),
+        //         token::Burn {
+        //             mint: ctx.accounts.mint.to_account_info(),
+        //             from: ctx.accounts.destination_token.to_account_info(),
+        //             authority: ctx.accounts.owner.to_account_info(),
+        //         },
+        //     ),
+        //     burn_amount,
+        // )?;
 
         Ok(())
     }
