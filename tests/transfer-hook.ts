@@ -1,49 +1,39 @@
-import * as web3 from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
+import * as anchor from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
+import { TransferHook } from '../target/types/transfer_hook';
 import {
-  PublicKey,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
+  ExtensionType,
+  createInitializeMintInstruction,
+  createAssociatedTokenAccountInstruction,
+  createMintToInstruction,
+  getMintLen,
+  getAssociatedTokenAddressSync,
+  createTransferCheckedWithTransferHookInstruction,
+} from '@solana/spl-token';
+import {
+  Keypair,
   SystemProgram,
   Transaction,
   sendAndConfirmTransaction,
-  Keypair,
-} from "@solana/web3.js";
-import {
-  ExtensionType,
-  TOKEN_2022_PROGRAM_ID,
-  getMintLen,
-  createInitializeMintInstruction,
-  createInitializeTransferHookInstruction,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountInstruction,
-  createMintToInstruction,
-  createTransferCheckedInstruction,
-  getAssociatedTokenAddressSync,
-  createTransferCheckedWithTransferHookInstruction,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import type { TransferHook } from "../target/types/transfer_hook";
-import { getExplorerLink } from "@solana-developers/helpers";
+  LAMPORTS_PER_SOL,
+} from '@solana/web3.js';
+import { expect } from 'chai';
 
-describe("transfer-hook", () => {
-  // Configure the client to use the local cluster
-  anchor.setProvider(anchor.AnchorProvider.env());
-
-  const program = anchor.workspace.TransferHook as anchor.Program<TransferHook>;
-  
-  // Configure the client to use the local cluster.
+describe('transfer-hook', () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-
+  const program = anchor.workspace.TransferHook as Program<TransferHook>;
   const wallet = provider.wallet as anchor.Wallet;
   const connection = provider.connection;
 
-  // Generate keypair to use as address for the transfer-hook enabled mint
-  const mint = new Keypair();
+  // Generate keypair for mint
+  const mint = Keypair.generate();
   const decimals = 9;
 
-  // Sender token account address
+  // Sender token account
   const sourceTokenAccount = getAssociatedTokenAddressSync(
     mint.publicKey,
     wallet.publicKey,
@@ -52,7 +42,7 @@ describe("transfer-hook", () => {
     ASSOCIATED_TOKEN_PROGRAM_ID
   );
 
-  // Recipient token account address
+  // Recipient
   const recipient = Keypair.generate();
   const destinationTokenAccount = getAssociatedTokenAddressSync(
     mint.publicKey,
@@ -62,33 +52,33 @@ describe("transfer-hook", () => {
     ASSOCIATED_TOKEN_PROGRAM_ID
   );
 
-  // ExtraAccountMetaList address
-  // Store extra accounts required by the custom transfer hook instruction
-  const [extraAccountMetaListPDA] = PublicKey.findProgramAddressSync(
+  // Extra accounts meta PDA
+  const [extraAccountMetaList] = anchor.web3.PublicKey.findProgramAddressSync(
     [Buffer.from("extra-account-metas"), mint.publicKey.toBuffer()],
     program.programId
   );
 
+  it("Airdrop SOL to recipient", async () => {
+    const signature = await connection.requestAirdrop(
+      recipient.publicKey,
+      LAMPORTS_PER_SOL
+    );
+    await connection.confirmTransaction(signature);
+  });
+
   it("Create Mint Account with Transfer Hook Extension", async () => {
     const extensions = [ExtensionType.TransferHook];
     const mintLen = getMintLen(extensions);
-    const lamports =
-      await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+    const lamports = await connection.getMinimumBalanceForRentExemption(mintLen);
 
     const transaction = new Transaction().add(
       SystemProgram.createAccount({
         fromPubkey: wallet.publicKey,
         newAccountPubkey: mint.publicKey,
         space: mintLen,
-        lamports: lamports,
+        lamports,
         programId: TOKEN_2022_PROGRAM_ID,
       }),
-      createInitializeTransferHookInstruction(
-        mint.publicKey,
-        wallet.publicKey,
-        program.programId, // Transfer Hook Program ID
-        TOKEN_2022_PROGRAM_ID
-      ),
       createInitializeMintInstruction(
         mint.publicKey,
         decimals,
@@ -99,18 +89,16 @@ describe("transfer-hook", () => {
     );
 
     const txSig = await sendAndConfirmTransaction(
-      provider.connection,
+      connection,
       transaction,
-      [wallet.payer, mint]
+      [wallet.payer, mint],
+      { skipPreflight: true }
     );
-    console.log(`Transaction Signature: ${txSig}`);
+    console.log(`Create Mint Transaction Signature: ${txSig}`);
   });
 
-  // Create the two token accounts for the transfer-hook enabled mint
-  // Fund the sender token account with 100 tokens
   it("Create Token Accounts and Mint Tokens", async () => {
-    // 100 tokens
-    const amount = 100 * 10 ** decimals;
+    const mintAmount = 1000 * 10 ** decimals;
 
     const transaction = new Transaction().add(
       createAssociatedTokenAccountInstruction(
@@ -133,7 +121,7 @@ describe("transfer-hook", () => {
         mint.publicKey,
         sourceTokenAccount,
         wallet.publicKey,
-        amount,
+        mintAmount,
         [],
         TOKEN_2022_PROGRAM_ID
       )
@@ -145,58 +133,48 @@ describe("transfer-hook", () => {
       [wallet.payer],
       { skipPreflight: true }
     );
-
-    console.log(`Transaction Signature: ${txSig}`);
+    console.log(`Mint Tokens Transaction Signature: ${txSig}`);
   });
 
-  // Account to store extra accounts required by the transfer hook instruction
-  it("Create ExtraAccountMetaList Account", async () => {
-    const initializeExtraAccountMetaListInstruction = await program.methods
+  it("Initialize ExtraAccountMetaList Account", async () => {
+    const tx = await program.methods
       .initializeExtraAccountMetaList()
       .accounts({
+        payer: wallet.publicKey,
+        extraAccountMetaList: extraAccountMetaList,
         mint: mint.publicKey,
-        extraAccountMetaList: extraAccountMetaListPDA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
       })
-      .instruction();
+      .rpc({ skipPreflight: true });
 
-    const transaction = new Transaction().add(
-      initializeExtraAccountMetaListInstruction
-    );
-
-    const txSig = await sendAndConfirmTransaction(
-      provider.connection,
-      transaction,
-      [wallet.payer],
-      { skipPreflight: true, commitment: "confirmed" }
-    );
-    console.log("Transaction Signature:", txSig);
+    console.log("Initialize ExtraAccountMetaList Transaction:", tx);
   });
 
-  it("Transfer Hook with Extra Account Meta", async () => {
-    // 1 tokens
-    const amount = 1 * 10 ** decimals;
-    const bigIntAmount = BigInt(amount);
+  it("Transfer tokens with burn fee", async () => {
+    const transferAmount = 100 * 10 ** decimals;
+    const burnAmount = Math.floor(transferAmount / 10000); // 0.01%
 
-    // Standard token transfer instruction
-   
+    const beforeSourceBalance = await connection.getTokenAccountBalance(sourceTokenAccount);
+    const beforeDestBalance = await connection.getTokenAccountBalance(destinationTokenAccount);
+
+    console.log("Before Source Balance:", beforeSourceBalance.value.amount);
+    console.log("Before Destination Balance:", beforeDestBalance.value.amount);
+
     const transferInstruction = await createTransferCheckedWithTransferHookInstruction(
       connection,
       sourceTokenAccount,
       mint.publicKey,
       destinationTokenAccount,
       wallet.publicKey,
-      bigIntAmount,
+      BigInt(transferAmount),
       decimals,
       [],
       "confirmed",
       TOKEN_2022_PROGRAM_ID
     );
 
-    const transaction = new Transaction().add(
-      transferInstruction
-    );
+    const transaction = new Transaction().add(transferInstruction);
 
     const txSig = await sendAndConfirmTransaction(
       connection,
@@ -204,6 +182,26 @@ describe("transfer-hook", () => {
       [wallet.payer],
       { skipPreflight: true }
     );
-    console.log("Transfer Signature:", txSig);
+
+    console.log("Transfer Transaction:", txSig);
+
+    // Wait a bit for the transaction to be confirmed
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Verify balances
+    const afterSourceBalance = await connection.getTokenAccountBalance(sourceTokenAccount);
+    const afterDestBalance = await connection.getTokenAccountBalance(destinationTokenAccount);
+
+    console.log("After Source Balance:", afterSourceBalance.value.amount);
+    console.log("After Destination Balance:", afterDestBalance.value.amount);
+    console.log("Expected Burn Amount:", burnAmount);
+
+    expect(Number(afterSourceBalance.value.amount)).to.equal(
+      Number(beforeSourceBalance.value.amount) - transferAmount
+    );
+
+    expect(Number(afterDestBalance.value.amount)).to.equal(
+      Number(beforeDestBalance.value.amount) + transferAmount - burnAmount
+    );
   });
 });
