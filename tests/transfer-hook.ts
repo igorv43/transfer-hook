@@ -1,6 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
-import { TransferHook } from '../target/types/transfer_hook';
+import { TransferHook } from '../target/types/burn_program';
 import {
     ASSOCIATED_TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
@@ -22,7 +22,7 @@ import {
 } from '@solana/web3.js';
 import { expect } from 'chai';
 
-describe('transfer-hook', () => {
+describe('burn-program', () => {
     const provider = anchor.AnchorProvider.env();
     anchor.setProvider(provider);
 

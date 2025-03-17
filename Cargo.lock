@@ -2138,7 +2138,7 @@ dependencies = [
  "spl-pod",
  "spl-token",
  "spl-token-metadata-interface",
- "spl-transfer-hook-interface 0.3.0",
+ "spl-burn-program-interface 0.3.0",
  "spl-type-length-value",
  "thiserror",
 ]
@@ -2162,7 +2162,7 @@ dependencies = [
  "spl-token",
  "spl-token-group-interface",
  "spl-token-metadata-interface",
- "spl-transfer-hook-interface 0.4.1",
+ "spl-burn-program-interface 0.4.1",
  "spl-type-length-value",
  "thiserror",
 ]
@@ -2195,7 +2195,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "spl-transfer-hook-interface"
+name = "spl-burn-program-interface"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "051d31803f873cabe71aec3c1b849f35248beae5d19a347d93a5c9cccc5d5a9b"
@@ -2211,7 +2211,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "spl-transfer-hook-interface"
+name = "spl-burn-program-interface"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7aabdb7c471566f6ddcee724beb8618449ea24b399e58d464d6b5bc7db550259"
@@ -2363,13 +2363,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "transfer-hook"
+name = "burn-program"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
  "spl-tlv-account-resolution 0.4.0",
- "spl-transfer-hook-interface 0.3.0",
+ "spl-burn-program-interface 0.3.0",
 ]
 
 [[package]]
